@@ -2,22 +2,17 @@
 
 package com.hirno.explorer.ui
 
+import android.util.Log
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.repeatable
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,33 +20,33 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.layout.wrapContentWidth
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.SearchBar
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.painter.ColorPainter
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -59,18 +54,25 @@ import androidx.tv.foundation.lazy.list.TvLazyColumn
 import androidx.tv.foundation.lazy.list.items
 import androidx.tv.material3.Button
 import androidx.tv.material3.ButtonDefaults
-import androidx.tv.material3.ButtonShape
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.Icon
+import androidx.tv.material3.LocalTextStyle
+import androidx.tv.material3.MaterialTheme
+import androidx.tv.material3.NonInteractiveSurfaceDefaults
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import com.bumptech.glide.integration.compose.ExperimentalGlideComposeApi
 import com.bumptech.glide.integration.compose.GlideImage
+import com.bumptech.glide.integration.compose.placeholder
 import com.hirno.explorer.R
 import com.hirno.explorer.model.ExplorerComposeState
 import com.hirno.explorer.model.ExplorerScreenState
 import com.hirno.explorer.model.Media
 import com.hirno.explorer.ui.theme.AppTheme
+import com.hirno.explorer.ui.theme.PlaceholderBackground
+import com.hirno.explorer.ui.theme.PlaceholderTint
+import kotlinx.coroutines.delay
+import kotlin.time.Duration.Companion.seconds
 
 @Composable
 @ExperimentalMaterial3Api
@@ -81,22 +83,12 @@ fun ExploreScreen(
 ) {
     Surface(
         modifier = modifier,
+        shape = MaterialTheme.shapes.extraSmall,
     ) {
-        var focusedMedia by rememberSaveable {
+        val focusedMedia = rememberSaveable {
             mutableStateOf<Media?>(null)
         }
-        AnimatedContent(
-            targetState = focusedMedia,
-            transitionSpec = {
-                fadeIn(animationSpec = tween(durationMillis = 500)) togetherWith
-                        fadeOut(animationSpec = tween(durationMillis = 500))
-            },
-            label = "",
-            contentAlignment = Alignment.CenterStart,
-            modifier = modifier
-        ) { item ->
-            GlideImage(model = item?.slides?.first(), contentDescription = "Preview Image")
-        }
+        BackgroundSlide(focusedMedia)
         Column(
             modifier = Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -111,8 +103,91 @@ fun ExploreScreen(
                     ExploreResults(
                         onMediaClicked = model.onMediaClicked,
                         onMediaLongClicked = model.onMediaLongClicked,
-                        onMediaFocused = { focusedMedia = it },
+                        onMediaFocused = { focusedMedia.value = it },
                         list = currentState.media,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+@ExperimentalGlideComposeApi
+private fun BackgroundSlide(
+    media: State<Media?> = mutableStateOf(Media()),
+) {
+    Surface(
+        colors = NonInteractiveSurfaceDefaults.colors(
+            containerColor = PlaceholderBackground,
+            contentColor = PlaceholderTint,
+        ),
+        shape = MaterialTheme.shapes.extraSmall,
+    ) {
+        Log.d("ExploreScreen", "Background media: $media")
+        val slideWidth = remember { 12.dp.value.toInt() }
+        AnimatedContent(
+            targetState = media.value,
+            transitionSpec = {
+                fadeIn(animationSpec = tween(400)) +
+                        slideInHorizontally(
+                            animationSpec = tween(400),
+                            initialOffsetX = { -slideWidth }
+                        ) togetherWith
+//                    fadeOut(animationSpec = tween(400)) +
+                        slideOutHorizontally(
+                            animationSpec = tween(400),
+                            targetOffsetX = { slideWidth }
+                        )
+            },
+            label = "",
+            contentAlignment = Alignment.CenterStart,
+            modifier = Modifier.fillMaxSize()
+        ) { item ->
+            var currentSlideIdx by rememberSaveable(item) { mutableIntStateOf(0) }
+            val slide = remember(item, currentSlideIdx) {
+                item?.slides?.run { get(currentSlideIdx % size) }
+            }
+            LaunchedEffect(item) {
+                while (true) {
+                    delay(2.seconds)
+                    currentSlideIdx++
+                }
+            }
+            Log.d("ExploreScreen", "Background slide: $slide, media: $item")
+            AnimatedContent(
+                targetState = slide,
+                transitionSpec = {
+                    fadeIn(animationSpec = tween(400)) +
+                            slideInHorizontally(
+                                animationSpec = tween(400),
+                                initialOffsetX = { -slideWidth }
+                            ) togetherWith
+//                        fadeOut(animationSpec = tween(400)) +
+                            slideOutHorizontally(
+                                animationSpec = tween(400),
+                                targetOffsetX = { slideWidth }
+                            )
+                },
+                label = "",
+                contentAlignment = Alignment.CenterStart,
+                modifier = Modifier.fillMaxSize()
+            ) { slide ->
+                Log.d("ExploreScreen", "Background image: $slide")
+                slide?.file?.let { slideFile ->
+                    GlideImage(
+                        modifier = Modifier.fillMaxSize(),
+                        model = slideFile,
+                        contentDescription = "Preview Image",
+                        contentScale = ContentScale.Crop,
+                        loading = placeholder(ColorPainter(PlaceholderBackground))
+                    )
+                } ?: run {
+                    Image(
+                        modifier = Modifier.wrapContentSize(),
+                        painter = painterResource(id = R.drawable.video),
+                        contentDescription = "Video Placeholder",
+                        colorFilter = ColorFilter.tint(PlaceholderTint),
                     )
                 }
             }
@@ -263,12 +338,11 @@ fun ExploreResult(
                 ) {
                     Text(
                         modifier = Modifier.wrapContentWidth(),
-                        text = item.file.nameWithoutExtension,
+                        text = item.nameWithoutExtension,
                     )
-                    Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         modifier = Modifier.wrapContentWidth(),
-                        text = item.file.extension,
+                        text = ".${item.extension}",
                     )
                 }
                 Row(
@@ -282,6 +356,7 @@ fun ExploreResult(
                     )
                     Text(
                         text = item.trimmedPath,
+                        style = LocalTextStyle.current
                     )
                 }
                 Row(

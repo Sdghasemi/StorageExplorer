@@ -4,11 +4,12 @@ import android.os.Parcelable
 import androidx.room.ColumnInfo
 import androidx.room.Embedded
 import androidx.room.Entity
-import androidx.room.ForeignKey
 import androidx.room.Ignore
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import androidx.room.Relation
 import com.google.gson.annotations.SerializedName
+import com.hirno.explorer.util.substringAfter
 import kotlinx.parcelize.IgnoredOnParcel
 import kotlinx.parcelize.Parcelize
 import java.io.File
@@ -47,16 +48,18 @@ data class Media @JvmOverloads constructor(
     @SerializedName("slides")
     var slides: List<Slide>? = null,
 ) : Parcelable, Comparable<Media> {
-    @Ignore
     @IgnoredOnParcel
-    val file = File(path)
+    val file by lazy { File(path) }
     @IgnoredOnParcel
     @ColumnInfo(name = "lastUseMillis")
     @SerializedName("lastUseMillis")
     var lastUseMillis: Long = System.currentTimeMillis()
-    @Ignore
     @IgnoredOnParcel
-    val trimmedPath = file.parentFile?.path?.run { substring(indexOf(storageUuid) + storageUuid.length) } ?: ""
+    val trimmedPath by lazy { file.parentFile?.path?.substringAfter(storageUuid) ?: "" }
+    @IgnoredOnParcel
+    val nameWithoutExtension by lazy { file.nameWithoutExtension }
+    @IgnoredOnParcel
+    val extension by lazy { file.extension.uppercase() }
     val isDirectory: Boolean
         get() = file.isDirectory
     val size: Long
@@ -76,17 +79,39 @@ data class Media @JvmOverloads constructor(
     override fun compareTo(other: Media) = file.name.compareTo(other.file.name)
 
     @Parcelize
+    @Entity(
+        tableName = "Slides",
+        indices = [
+            Index(
+                value = ["mediaPath", "path"],
+                orders = [Index.Order.ASC, Index.Order.ASC]
+            )
+        ],
+    )
     data class Slide(
-        @PrimaryKey
-        @ColumnInfo(name = "path")
+        @ColumnInfo(name = "mediaPath")
         @SerializedName("mediaPath")
         val mediaPath: String,
-        @ColumnInfo(name = "slide")
+        @PrimaryKey
+        @ColumnInfo(name = "path")
         @SerializedName("path")
         val path: String,
     ): Parcelable {
         @Ignore
         @IgnoredOnParcel
         val file = File(path)
+    }
+}
+
+data class MediaWithSlides(
+    @Embedded val media: Media,
+    @Relation(
+        parentColumn = "path",
+        entityColumn = "mediaPath"
+    )
+    val mediaSlides: List<Media.Slide>
+) {
+    fun toMedia() = media.apply {
+        slides = mediaSlides.takeUnless { it.isEmpty() }
     }
 }

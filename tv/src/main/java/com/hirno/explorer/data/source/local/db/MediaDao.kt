@@ -4,7 +4,9 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import com.hirno.explorer.model.Media
+import com.hirno.explorer.model.MediaWithSlides
 
 /**
  * Data Access Object for Collections table
@@ -16,8 +18,9 @@ interface MediaDao {
      *
      * @return all loaded collections.
      */
+    @Transaction
     @Query("SELECT * FROM Media ORDER BY lastUseMillis DESC")
-    fun getAll(): List<Media>
+    fun getAll(): List<MediaWithSlides>
 
     /**
      * Insert a recent media in the database.

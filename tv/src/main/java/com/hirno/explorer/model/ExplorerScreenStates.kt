@@ -4,7 +4,6 @@ import android.os.Parcelable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.State
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import kotlinx.parcelize.Parcelize
 
@@ -25,7 +24,7 @@ sealed class ExplorerScreenState {
         private var resultsHash: Int = -1,
     ) : ExplorerScreenState(), Parcelable {
         init {
-            resultsHash = media.hashCode()
+            resultsHash = media.size
         }
     }
 }

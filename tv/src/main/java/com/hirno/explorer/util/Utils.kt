@@ -1,7 +1,5 @@
 package com.hirno.explorer.util
 
-import android.content.ContentResolver
-import android.net.Uri
 import android.view.LayoutInflater
 import android.view.View
 import android.webkit.MimeTypeMap
@@ -20,6 +18,10 @@ fun getMimeType(file: File): String? {
     )
 }
 
+fun String.substringAfter(phrase: String, caseInsensitive: Boolean = false): String {
+    return substring(indexOf(phrase, ignoreCase = caseInsensitive) + phrase.length)
+}
+
 inline fun <T> T.alsoIf(condition: Boolean, block: (T) -> T): T {
     return if (condition) block(this) else this
 }
@@ -34,3 +36,6 @@ inline fun RecyclerView.addScrollListener(crossinline scrollListener: RecyclerVi
 
 val View.inflater: LayoutInflater
     get() = LayoutInflater.from(context)
+
+val <T> Collection<T>?.size: Int
+    get() = this?.size ?: 0

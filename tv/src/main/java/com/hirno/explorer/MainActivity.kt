@@ -6,10 +6,10 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Modifier
 import androidx.core.content.FileProvider
+import com.bumptech.glide.integration.compose.ExperimentalGlideComposeApi
 import com.hirno.explorer.model.ExplorerComposeState
 import com.hirno.explorer.model.ExplorerScreenEffect
 import com.hirno.explorer.model.ExplorerScreenEffect.OpenMedia
@@ -30,6 +30,7 @@ class MainActivity : ComponentActivity() {
     
     private val model: ExplorerViewModel by viewModel()
 
+    @ExperimentalGlideComposeApi
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

@@ -7,6 +7,7 @@ import com.hirno.explorer.data.source.MediaRepository
 import com.hirno.explorer.data.source.local.db.RecentDatabase
 import com.hirno.explorer.data.source.local.db.MediaDatabaseDataSource
 import com.hirno.explorer.data.source.local.db.MediaDao
+import com.hirno.explorer.data.source.local.db.SlideDao
 import com.hirno.explorer.data.source.local.storage.MediaStorageDataSource
 import com.hirno.explorer.viewmodel.ExplorerViewModel
 import kotlinx.coroutines.Dispatchers
@@ -29,12 +30,10 @@ val appModule = module {
         ).fallbackToDestructiveMigration()
             .build()
     }
-    single<MediaDao> {
-        val database = get<RecentDatabase>()
-        database.mediaDao()
-    }
+    single<MediaDao> { get<RecentDatabase>().mediaDao() }
+    single<SlideDao> { get<RecentDatabase>().slideDao() }
     single<MediaDataSource>(named("StorageDataSource")) { MediaStorageDataSource(get(named("IODispatcher")), get()) }
-    single<MediaDataSource>(named("DatabaseDataSource")) { MediaDatabaseDataSource(get(named("IODispatcher")), get()) }
+    single<MediaDataSource>(named("DatabaseDataSource")) { MediaDatabaseDataSource(get(named("IODispatcher")), get(), get()) }
     single<MediaRepository> { DefaultMediaRepository(get(named("StorageDataSource")), get(named("DatabaseDataSource"))) }
     viewModel { ExplorerViewModel(get(), get()) }
 }

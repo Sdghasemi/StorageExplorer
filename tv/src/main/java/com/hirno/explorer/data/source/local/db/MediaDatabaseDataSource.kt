@@ -18,6 +18,7 @@ import kotlinx.coroutines.withContext
 class MediaDatabaseDataSource(
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val mediaDao: MediaDao,
+    private val slideDao: SlideDao,
 ) : MediaDataSource {
     /**
      * Get all collections from local storage
@@ -25,13 +26,15 @@ class MediaDatabaseDataSource(
      * @return A [NetworkResponse.Success] when all collections are retrieved successfully or a [NetworkResponse.UnknownError] with the exception that occurred
      */
     override suspend fun searchMedia(term: String): Flow<List<Media>> = flow {
-        emit(mediaDao.getAll())
+        emit(mediaDao.getAll().map { it.toMedia() })
     }.flowOn(ioDispatcher)
 
     override suspend fun saveRecentMedia(media: Media): Boolean = withContext(ioDispatcher) {
         try {
             media.updateLastUse()
-            mediaDao.insert(media) != 0L
+            val mediaPersistResult = mediaDao.insert(media) != 0L
+            val slidesPersistResult = media.slides?.let { slideDao.insert(it).isNotEmpty() } ?: true
+            mediaPersistResult and slidesPersistResult
         } catch (e: Exception) {
             false
         }
