@@ -44,10 +44,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.tv.foundation.lazy.list.TvLazyColumn
@@ -55,6 +56,7 @@ import androidx.tv.foundation.lazy.list.items
 import androidx.tv.material3.Button
 import androidx.tv.material3.ButtonDefaults
 import androidx.tv.material3.ExperimentalTvMaterial3Api
+import androidx.tv.material3.Glow
 import androidx.tv.material3.Icon
 import androidx.tv.material3.LocalTextStyle
 import androidx.tv.material3.MaterialTheme
@@ -89,17 +91,23 @@ fun ExploreScreen(
             mutableStateOf<Media?>(null)
         }
         BackgroundSlide(focusedMedia)
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            SearchField(
-                modifier = Modifier,
-                onSearch = model.onSearch,
+        val state by model.state
+        when (val currentState = state) {
+            is ExplorerScreenState.StoragePermissionRequired -> StoragePermissionScreen(
+                requestStoragePermission = model.requestStoragePermission
             )
-            val state by model.state
-            when (val currentState = state) {
-                is ExplorerScreenState.SearchResults -> {
+            is ExplorerScreenState.NoStorageFound -> NoStorageScreen(
+                modifier = Modifier.fillMaxSize(),
+            )
+            is ExplorerScreenState.SearchResults -> {
+                Column(
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    SearchField(
+                        modifier = Modifier,
+                        onSearch = model.onSearch,
+                    )
                     ExploreResults(
                         onMediaClicked = model.onMediaClicked,
                         onMediaLongClicked = model.onMediaLongClicked,
@@ -125,21 +133,22 @@ private fun BackgroundSlide(
         shape = MaterialTheme.shapes.extraSmall,
     ) {
         Log.d("ExploreScreen", "Background media: $media")
-        val slideWidth = remember { 12.dp.value.toInt() }
+        val slideWidth = remember { 4.dp.value.toInt() }
+        val transitionSpec = remember {
+            fadeIn(animationSpec = tween(500)) +
+                    slideInHorizontally(
+                        animationSpec = tween(500),
+                        initialOffsetX = { -slideWidth }
+                    ) togetherWith
+//                    fadeOut(animationSpec = tween(400)) +
+                    slideOutHorizontally(
+                        animationSpec = tween(500),
+                        targetOffsetX = { slideWidth }
+                    )
+        }
         AnimatedContent(
             targetState = media.value,
-            transitionSpec = {
-                fadeIn(animationSpec = tween(400)) +
-                        slideInHorizontally(
-                            animationSpec = tween(400),
-                            initialOffsetX = { -slideWidth }
-                        ) togetherWith
-//                    fadeOut(animationSpec = tween(400)) +
-                        slideOutHorizontally(
-                            animationSpec = tween(400),
-                            targetOffsetX = { slideWidth }
-                        )
-            },
+            transitionSpec = { transitionSpec },
             label = "",
             contentAlignment = Alignment.CenterStart,
             modifier = Modifier.fillMaxSize()
@@ -157,24 +166,21 @@ private fun BackgroundSlide(
             Log.d("ExploreScreen", "Background slide: $slide, media: $item")
             AnimatedContent(
                 targetState = slide,
-                transitionSpec = {
-                    fadeIn(animationSpec = tween(400)) +
-                            slideInHorizontally(
-                                animationSpec = tween(400),
-                                initialOffsetX = { -slideWidth }
-                            ) togetherWith
-//                        fadeOut(animationSpec = tween(400)) +
-                            slideOutHorizontally(
-                                animationSpec = tween(400),
-                                targetOffsetX = { slideWidth }
-                            )
-                },
+                transitionSpec = { transitionSpec },
                 label = "",
                 contentAlignment = Alignment.CenterStart,
                 modifier = Modifier.fillMaxSize()
             ) { slide ->
                 Log.d("ExploreScreen", "Background image: $slide")
                 slide?.file?.let { slideFile ->
+//                    val elevation by animateDpAsState(
+//                        targetValue = if (isFocused) 6.dp else 2.dp,
+//                        animationSpec = tween(
+//                            durationMillis = 150,
+//                            easing = FastOutSlowInEasing
+//                        ),
+//                        label = "Elevation Animation"
+//                    )
                     GlideImage(
                         modifier = Modifier.fillMaxSize(),
                         model = slideFile,
@@ -182,14 +188,14 @@ private fun BackgroundSlide(
                         contentScale = ContentScale.Crop,
                         loading = placeholder(ColorPainter(PlaceholderBackground))
                     )
-                } ?: run {
+                } /*?: run {
                     Image(
                         modifier = Modifier.wrapContentSize(),
                         painter = painterResource(id = R.drawable.video),
                         contentDescription = "Video Placeholder",
                         colorFilter = ColorFilter.tint(PlaceholderTint),
                     )
-                }
+                }*/
             }
         }
     }
@@ -249,11 +255,11 @@ private fun SearchField(
             ),
             singleLine = true,
             leadingIcon = { Icon(imageVector = Icons.Default.Search, contentDescription = "") },
-            placeholder = { Text(text = "Search...") },
+            placeholder = { Text(text = stringResource(R.string.search_hint)) },
             shape = RoundedCornerShape(12.dp),
             modifier = modifier
                 .fillMaxWidth(width)
-                .shadow(elevation = elevation, shape = RoundedCornerShape(12.dp))
+                .shadow(elevation = elevation, shape = MaterialTheme.shapes.large)
                 .align(Alignment.Center)
                 .onFocusChanged { isFocused = it.isFocused },
         )
@@ -372,6 +378,84 @@ fun ExploreResult(
                 }
             }
         }
+    }
+}
+
+@Composable
+fun StoragePermissionScreen(
+    modifier: Modifier = Modifier,
+    requestStoragePermission: () -> Unit = {},
+) {
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            modifier = Modifier.wrapContentSize(),
+            text = stringResource(R.string.storage_permission_rational),
+            color = PlaceholderTint,
+            textAlign = TextAlign.Center,
+        )
+        val idleGlow = remember { Glow(Color.Black, 8.dp) }
+        val pressedGlow = remember { Glow(Color.Black, 12.dp) }
+        val glow = remember {
+            ButtonDefaults.glow(
+                glow = idleGlow,
+                focusedGlow = pressedGlow,
+                pressedGlow = pressedGlow,
+            )
+        }
+        Button(
+            onClick = requestStoragePermission,
+            glow = glow,
+            tonalElevation = 8.dp,
+        ) {
+            Text(
+                modifier = Modifier.align(Alignment.CenterVertically),
+                text = stringResource(R.string.grant_permission),
+                textAlign = TextAlign.Center,
+            )
+        }
+    }
+}
+
+@Composable
+fun NoStorageScreen(
+    modifier: Modifier = Modifier,
+) {
+    Text(
+        modifier = modifier,
+        text = stringResource(R.string.no_storage_attached),
+        color = PlaceholderTint,
+        textAlign = TextAlign.Center,
+    )
+}
+
+@Preview
+@Composable
+@ExperimentalMaterial3Api
+fun StoragePermissionPreview() {
+    AppTheme {
+        StoragePermissionScreen()
+    }
+}
+
+@Preview
+@Composable
+@ExperimentalMaterial3Api
+fun NoStoragePreview() {
+    AppTheme {
+        NoStorageScreen()
+    }
+}
+
+@Preview
+@Composable
+@ExperimentalMaterial3Api
+@OptIn(ExperimentalGlideComposeApi::class)
+fun BackgroundSlidePreview() {
+    AppTheme {
+        BackgroundSlide()
     }
 }
 

@@ -122,6 +122,7 @@ dependencies {
     implementation(libs.androidx.constraintlayout)
     implementation(libs.androidx.lifecycle.livedata.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
+    implementation(libs.androidx.lifecycle.process)
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.coroutines.android)
 
@@ -131,6 +132,7 @@ dependencies {
 
     // Dependency Injection
     implementation(libs.koin.android)
+    implementation(libs.koin.androidx.compose)
 
     // Unit Test
     testImplementation(libs.junit4)

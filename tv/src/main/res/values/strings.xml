@@ -17,4 +17,9 @@
     <string name="error_fragment_message">An error occurred</string>
     <string name="dismiss_error">Dismiss</string>
     <string name="choose">Choose:</string>
+    <string name="storage_permission_rational">Cannot start exploring storages without your permission!</string>
+    <string name="grant_permission_through_app_info">Please grant storage permission from app info!</string>
+    <string name="no_storage_attached">No storages are attached :(</string>
+    <string name="search_hint">Search…</string>
+    <string name="grant_permission">Grant Permission\n</string>
 </resources>

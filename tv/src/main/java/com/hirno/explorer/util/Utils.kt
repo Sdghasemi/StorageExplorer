@@ -1,5 +1,9 @@
 package com.hirno.explorer.util
 
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
 import android.view.LayoutInflater
 import android.view.View
 import android.webkit.MimeTypeMap
@@ -36,6 +40,12 @@ inline fun RecyclerView.addScrollListener(crossinline scrollListener: RecyclerVi
 
 val View.inflater: LayoutInflater
     get() = LayoutInflater.from(context)
+
+fun Context.openAppSystemSettings() {
+    startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+        data = Uri.fromParts("package", packageName, null)
+    })
+}
 
 val <T> Collection<T>?.size: Int
     get() = this?.size ?: 0

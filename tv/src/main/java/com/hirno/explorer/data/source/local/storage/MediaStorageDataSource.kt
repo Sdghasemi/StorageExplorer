@@ -1,16 +1,15 @@
 package com.hirno.explorer.data.source.local.storage
 
-import android.annotation.TargetApi
 import android.app.Application
-import android.content.Context
 import android.graphics.Bitmap
 import android.media.MediaMetadataRetriever
 import android.media.MediaMetadataRetriever.OPTION_CLOSEST
-import android.os.Build
-import android.os.storage.StorageManager
 import android.util.Log
 import com.hirno.explorer.data.source.MediaDataSource
 import com.hirno.explorer.model.Media
+import com.hirno.explorer.model.Storage
+import com.hirno.explorer.storage.DefaultStorageObserver.Companion.STORAGE_PATH
+import com.hirno.explorer.storage.StorageObserver
 import com.hirno.explorer.util.getMimeType
 import com.hirno.explorer.util.substringAfter
 import kotlinx.coroutines.CoroutineDispatcher
@@ -34,6 +33,7 @@ import kotlin.time.Duration.Companion.seconds
  */
 class MediaStorageDataSource(
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val storageObserver: StorageObserver,
     private val application: Application,
 ) : MediaDataSource {
     /**
@@ -42,11 +42,10 @@ class MediaStorageDataSource(
     override suspend fun searchMedia(term: String): Flow<List<Media>> = flow {
         try {
             val results = mutableListOf<Media>()
-            getUsbStoragePaths().forEach { (storage, description) ->
-                Log.d(TAG, "Storage path found: ${storage.path}")
+            storageObserver.connectedVolumes.value.forEach { storage ->
                 ROOT_SEARCH_DIRS.forEach { targetDir ->
-                    val target = File(storage, targetDir)
-                    searchMediaIn(target, storage.name, description, term, results)
+                    val target = File(storage.path, targetDir)
+                    searchMediaIn(target, storage, term, results)
                 }
             }
         } catch (e: Exception) {
@@ -58,14 +57,13 @@ class MediaStorageDataSource(
 
     private suspend fun FlowCollector<List<Media>>.searchMediaIn(
         target: File,
-        storageUuid: String,
-        description: String,
+        storage: Storage,
         term: String,
         results: MutableList<Media>,
     ) {
         try {
             if (target.isFile) {
-                if (validateAndAddMedia(target, storageUuid, description, results)) {
+                if (validateAndAddMedia(target, storage.uuid, storage.description, results)) {
                     Log.d(TAG, "File found for \"$term\": ${results.last()}")
                     emit(results)
                 }
@@ -77,8 +75,7 @@ class MediaStorageDataSource(
                     Log.d(TAG, "Looking in $innerDirectory")
                     searchMediaIn(
                         target = innerDirectory,
-                        storageUuid = storageUuid,
-                        description = description,
+                        storage = storage,
                         term = term,
                         results = results
                     )
@@ -89,22 +86,6 @@ class MediaStorageDataSource(
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error while searching media", e)
-        }
-    }
-
-    @TargetApi(Build.VERSION_CODES.Q)
-    private fun getUsbStoragePaths(): List<Pair<File, String>> {
-        return try {
-            val storageManger = application.getSystemService(Context.STORAGE_SERVICE) as StorageManager
-            val storageDir = File(STORAGE_PATH)
-            storageManger.storageVolumes.mapNotNull { storage ->
-                storage.uuid?.let {
-                    File(storageDir, it) to storage.getDescription(application)
-                }
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error while retrieving storage paths", e)
-            emptyList()
         }
     }
 
@@ -193,7 +174,6 @@ class MediaStorageDataSource(
 
     companion object {
         const val TAG = "MediaStorageDataSource"
-        const val STORAGE_PATH = "storage/"
         private val ROOT_SEARCH_DIRS = listOf(
             "Films",
             "Series",
