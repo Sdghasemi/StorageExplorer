@@ -238,7 +238,7 @@ private fun SearchField(
             onValueChange = { newTerm ->
                 searchedTerm = newTerm
                 val term = newTerm.trim()
-                if (term.length >= 3) {
+                if (term.length >= 2) {
                     onSearch(term)
                 }
             },
@@ -411,9 +411,7 @@ fun StoragePermissionScreen(
             tonalElevation = 8.dp,
         ) {
             Text(
-                modifier = Modifier.align(Alignment.CenterVertically),
                 text = stringResource(R.string.grant_permission),
-                textAlign = TextAlign.Center,
             )
         }
     }

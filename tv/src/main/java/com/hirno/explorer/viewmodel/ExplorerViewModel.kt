@@ -20,6 +20,7 @@ import com.hirno.explorer.model.ExplorerScreenEvent.ScreenLoad
 import com.hirno.explorer.model.ExplorerScreenEvent.Search
 import com.hirno.explorer.model.ExplorerScreenState
 import com.hirno.explorer.storage.StorageObserver
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 class ExplorerViewModel(
@@ -39,6 +40,12 @@ class ExplorerViewModel(
 
     private val connectedVolumes = storageObserver.connectedVolumes
 
+    private var searchJob: Job? = null
+        set(value) {
+            field?.cancel()
+            field = value
+        }
+
     fun event(event: ExplorerScreenEvent) {
         when(event) {
             is RequestStoragePermission -> viewAction.value = ExplorerScreenEffect.RequestStoragePermission
@@ -47,7 +54,7 @@ class ExplorerViewModel(
                     application,
                     Manifest.permission.READ_EXTERNAL_STORAGE
                 ) == PackageManager.PERMISSION_GRANTED
-                if (hasStoragePermission) viewModelScope.launch {
+                if (hasStoragePermission) searchJob = viewModelScope.launch {
                     connectedVolumes.collect { storages ->
                         Log.d(TAG, "Collected storages: $storages")
                         if (storages.isEmpty()) viewState.value = ExplorerScreenState.NoStorageFound
@@ -61,7 +68,7 @@ class ExplorerViewModel(
                     }
                 } else viewState.value = ExplorerScreenState.StoragePermissionRequired
             }
-            is Search -> viewModelScope.launch {
+            is Search -> searchJob = viewModelScope.launch {
                 val searchTerm = event.term
                 mediaRepository.getMedia(searchTerm).collect { mediaList ->
                     viewState.value = ExplorerScreenState.SearchResults(

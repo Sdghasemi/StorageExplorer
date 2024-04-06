@@ -11,6 +11,9 @@ import com.hirno.explorer.model.Storage
 import com.hirno.explorer.storage.DefaultStorageObserver.Companion.STORAGE_PATH
 import com.hirno.explorer.storage.StorageObserver
 import com.hirno.explorer.util.getMimeType
+import com.hirno.explorer.util.string.matcher.FileMatcherImpl
+import com.hirno.explorer.util.string.parser.SearchTermParser
+import com.hirno.explorer.util.string.parser.SearchTermParserImpl
 import com.hirno.explorer.util.substringAfter
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -18,6 +21,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.yield
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
@@ -41,11 +45,12 @@ class MediaStorageDataSource(
      */
     override suspend fun searchMedia(term: String): Flow<List<Media>> = flow {
         try {
+            val parser = SearchTermParserImpl(term)
             val results = mutableListOf<Media>()
             storageObserver.connectedVolumes.value.forEach { storage ->
                 ROOT_SEARCH_DIRS.forEach { targetDir ->
                     val target = File(storage.path, targetDir)
-                    searchMediaIn(target, storage, term, results)
+                    searchMediaIn(target, storage, term, parser, results)
                 }
             }
         } catch (e: Exception) {
@@ -59,24 +64,27 @@ class MediaStorageDataSource(
         target: File,
         storage: Storage,
         term: String,
+        parser: SearchTermParser,
         results: MutableList<Media>,
     ) {
         try {
+            yield()
             if (target.isFile) {
                 if (validateAndAddMedia(target, storage.uuid, storage.description, results)) {
                     Log.d(TAG, "File found for \"$term\": ${results.last()}")
                     emit(results)
                 }
             } else {
+                val fileMatcher = FileMatcherImpl(parser)
                 target.listFiles { dir, name ->
-                    name.contains(term, ignoreCase = true) ||
-                            dir.name.contains(term, ignoreCase = true)
+                    fileMatcher.matches(dir, name)
                 }?.forEach { innerDirectory ->
                     Log.d(TAG, "Looking in $innerDirectory")
                     searchMediaIn(
                         target = innerDirectory,
                         storage = storage,
                         term = term,
+                        parser = parser,
                         results = results
                     )
                 } ?: run {
